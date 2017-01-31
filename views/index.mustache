@@ -1,0 +1,398 @@
+<html>
+<head>
+<style>
+canvas, img {
+    width: 512px;
+    image-rendering: pixelated;
+    background: black;
+}
+#viewerContainer {
+    position:relative;
+}
+#seed {
+    display:block;
+    width:10px;
+    height:10px;
+    position:absolute;
+    top:0;
+    left:0;
+    background-color:white;
+    border:thin solid white;
+    border-radius:10px;
+    pointer-events:none;
+}
+#target {
+    display:block;
+    width:10px;
+    height:10px;
+    position:absolute;
+    top:0;
+    left:0;
+    border:thin solid white;
+    pointer-events:none;
+}
+</style>
+</head>
+
+<body>
+
+<button onclick='changeView("sag")'>Sag</button>
+<button onclick='changeView("cor")'>Cor</button>
+<button onclick='changeView("axi")'>Axi</button>
+<br />
+
+<label><input id='sync' type='checkbox' checked /> Sync</label><br />
+
+Seed<br />
+X <input id='sx' max=45 oninput='changeSeed(this.value,"sx")' type='range' /><br />
+Y <input id='sy' max=54 oninput='changeSeed(this.value,"sy")' type='range' /><br />
+Z <input id='sz' max=45 oninput='changeSeed(this.value,"sz")' type='range' /><br />
+
+Target<br />
+X <input id='tx' max=45 oninput='changeTarget(this.value,"tx")' type='range' /><br />
+Y <input id='ty' max=54 oninput='changeTarget(this.value,"ty")' type='range' /><br />
+Z <input id='tz' max=45 oninput='changeTarget(this.value,"tz")' type='range' /><br />
+
+<div id="viewerContainer">
+    <canvas id='viewer'>
+    </canvas>
+    <div id="seed">
+    </div>
+    <div id="target">
+    </div>
+</div>
+
+<pre id="top100">
+</pre>
+
+<pre id="info">
+</pre>
+
+
+<!--
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+-->
+<script src="/js/jquery-3.1.0.js"></script>
+<script>
+'use strict';
+var debug = 0;
+var brain;                                  // template 3D data
+var dim=[180,216,180];                      // template dimensions, 1mm3
+var M = Math.max(...dim);                   // maximum dimension
+var loading = false;
+var isMouseDown = false;
+var lastReq,pendingReq;
+var host = "ws://" + window.location.hostname + ":8080/";
+var ws=new WebSocket(host);
+var myData;                                 // cmap slice img data
+var state = {
+    seed:[22,27,22],
+    target:[22,27,22],
+    view:'sag'
+};
+var W,H,S;                                    // cmap width and height
+
+loadTemplate();
+
+// Stereotaxic viewer canvas
+var cn=document.getElementById('viewer');   // viewer canvas
+var cx=cn.getContext('2d');                 // viewer canvas's context
+var mimg=cx.createImageData(M,M);
+var data2=mimg.data;
+
+// add mouse/touch listeners to 'viewer' canvas
+$('#viewer').on('mousedown',mousedown);
+$('#viewer').on('mousemove',mousemove);
+$('#viewer').on('mouseup',mouseup);
+$('body').on('mouseleave','#viewer',mouseup);
+
+// WebSocket code
+// open
+ws.onopen = function(msg) {
+    changeView('sag');
+};
+// receive message
+ws.onmessage = receive;
+function receive(msg) {
+    if(debug) console.log("> receive");
+    
+    if(msg.data instanceof Blob) {
+    // data is binary (cmap)
+        var fileReader = new FileReader();
+        fileReader.onload = function () {
+            console.timeEnd('draw A');
+            myData = new Uint8Array(this.result);
+            loading = false;
+            if(pendingReq && pendingReq != lastReq ) {
+                requestData(pendingReq);
+            }
+            drawTemplate();
+        }
+        console.time('draw A');
+        fileReader.readAsArrayBuffer(msg.data);
+    } else {
+    // data is text (top100 or info)
+        var o = JSON.parse(msg.data);
+        // var arr=msg.data.split("\n").map(function(o){var r=o.split("\t");return [parseFloat(r[0]),r[1]]}); console.log(arr);
+        if(o.top) {
+            $("#top100").text(o.top);
+        }
+        if(o.info) {
+            $("#info").text("a:"+o.info[0]+" b:"+o.info[1]+" k:"+o.info[2]+" r:"+o.info[3].toFixed(4));
+        }
+    }
+};
+// send requestData message
+function requestData(req) {
+    if(debug) console.log("> requestData");
+    var str;
+    
+    if(req) {
+        str = req;
+    } else {
+        str = JSON.stringify(state);
+    }
+    
+    // send a request only if the previous one returned
+    if(loading==false) {
+        // send a request only if it's different from the previous one
+        if(str != lastReq) {
+            ws.send(str);
+            lastReq = str;
+            pendingReq = null;
+            loading = true;
+        }
+    } else {
+    // otherwise, keep it
+        pendingReq = str;
+    }
+}
+
+/**
+ * @func loadTemplate
+ * @desc Load sprite image for template, convert it to volume, store in `brain`
+ */
+function loadTemplate() {
+    if(debug) console.log("> loadTemplate");
+    //var dim=[0,233,189]; // brainsprite.js sprite.jpg
+    var spriteImg;
+    var ncol, nrow;
+    var scn=document.createElement('canvas');   // sprite offscreen canvas
+    var scx=scn.getContext('2d');               // sprite offscreen canvas's context
+    var img=new Image();                        // img containing the template sprite
+    img.onload = function () {
+        scn.width=img.width;
+        scn.height=img.height;
+        scx.drawImage(img,0,0);
+        spriteImg = scx.getImageData(0,0,img.width,img.height);
+        console.log(spriteImg);
+        ncol=spriteImg.width/dim[1];
+        nrow=spriteImg.height/dim[2];
+        brain = new Uint8Array(dim[0]*dim[1]*dim[2]);
+        var i,j,x,y,z,val;
+        // convert sprite image to volume
+        for(i=0;i<img.width;i++) {
+            for(j=0;j<img.height;j++) {
+                x=Math.floor(i/dim[1])+Math.floor(j/dim[2])*ncol;
+                y=i%dim[1];
+                //z=dim[2]-1-j%dim[2];
+                z=j%dim[2];
+                val=spriteImg.data[4*(i+j*img.width)];
+                brain[x+y*dim[0]+z*dim[0]*dim[1]]=val;
+            }
+        }
+    };
+    img.src = '/img/sprite.jpg';
+}
+
+var negpos=[	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.0053,0.0105,0.0158,0.0211,0.0263,0.0316,0.0368,0.0421,0.0474,0.0526,0.0579,0.0632,0.0684,0.0737,0.0789,0.0842,0.0895,0.0947,0.1000,0.1053,0.1105,0.1158,0.1211,0.1263,0.1316,0.1368,0.1421,0.1474,0.1526,0.1579,0.1632,0.3368,0.3474,0.3579,0.3684,0.3789,0.3895,0.4000,0.4105,0.4211,0.4316,0.4421,0.4526,0.4632,0.4737,0.4842,0.4947,0.5053,0.5158,0.5263,0.5368,0.5474,0.5579,0.5684,0.5789,0.5895,0.6000,0.6105,0.6211,0.6316,0.6421,0.6526,0.6632,0.6737,0.6842,0.6947,0.7053,0.7158,0.7263,0.7368,0.7474,0.7579,0.7684,0.7789,0.7895,0.8000,0.8105,0.8211,0.8316,0.8421,0.8526,0.8632,0.8737,0.8842,0.8947,0.9053,0.9158,0.9263,0.9368,0.9474,0.9579,0.9684,0.9789,0.9895,1.0000,
+				0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.3316,0.3263,0.3211,0.3158,0.3105,0.3053,0.3000,0.2947,0.2895,0.2842,0.2789,0.2737,0.2684,0.2632,0.2579,0.2526,0.2474,0.2421,0.2368,0.2316,0.2263,0.2211,0.2158,0.2105,0.2053,0.2000,0.1947,0.1895,0.1842,0.1789,0.1737,0.1684,0.3263,0.3158,0.3053,0.2947,0.2842,0.2737,0.2632,0.2526,0.2421,0.2316,0.2211,0.2105,0.2000,0.1895,0.1789,0.1684,0.1579,0.1474,0.1368,0.1263,0.1158,0.1053,0.0947,0.0842,0.0737,0.0632,0.0526,0.0421,0.0316,0.0211,0.0105,0,0,0.0105,0.0211,0.0316,0.0421,0.0526,0.0632,0.0737,0.0842,0.0947,0.1053,0.1158,0.1263,0.1368,0.1474,0.1579,0.1684,0.1789,0.1895,0.2000,0.2105,0.2211,0.2316,0.2421,0.2526,0.2632,0.2737,0.2842,0.2947,0.3053,0.3158,0.3263,0.1684,0.1737,0.1789,0.1842,0.1895,0.1947,0.2000,0.2053,0.2105,0.2158,0.2211,0.2263,0.2316,0.2368,0.2421,0.2474,0.2526,0.2579,0.2632,0.2684,0.2737,0.2789,0.2842,0.2895,0.2947,0.3000,0.3053,0.3105,0.3158,0.3211,0.3263,0.3316,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+				1.0000,0.9895,0.9789,0.9684,0.9579,0.9474,0.9368,0.9263,0.9158,0.9053,0.8947,0.8842,0.8737,0.8632,0.8526,0.8421,0.8316,0.8211,0.8105,0.8000,0.7895,0.7789,0.7684,0.7579,0.7474,0.7368,0.7263,0.7158,0.7053,0.6947,0.6842,0.6737,0.6632,0.6526,0.6421,0.6316,0.6211,0.6105,0.6000,0.5895,0.5789,0.5684,0.5579,0.5474,0.5368,0.5263,0.5158,0.5053,0.4947,0.4842,0.4737,0.4632,0.4526,0.4421,0.4316,0.4211,0.4105,0.4000,0.3895,0.3789,0.3684,0.3579,0.3474,0.3368,0.1632,0.1579,0.1526,0.1474,0.1421,0.1368,0.1316,0.1263,0.1211,0.1158,0.1105,0.1053,0.1000,0.0947,0.0895,0.0842,0.0789,0.0737,0.0684,0.0632,0.0579,0.0526,0.0474,0.0421,0.0368,0.0316,0.0263,0.0211,0.0158,0.0105,0.0053,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+function colormap(val) {
+	var	n = 192,i = Math.floor(val*(n-1)), c=[];
+	var	cm = negpos;
+	
+	c[0]=255 * (cm[    i]+(val-i/(n-1)) * (cm[    i+1]-cm[    i]));
+	c[1]=255 * (cm[  n+i]+(val-i/(n-1)) * (cm[  n+i+1]-cm[  n+i]));
+	c[2]=255 * (cm[2*n+i]+(val-i/(n-1)) * (cm[2*n+i+1]-cm[2*n+i]));
+	c[3]=255;
+	return c;
+}
+
+
+// draw brain template image
+function drawTemplate() {
+    if(debug) console.log("> drawTemplate");
+    var x,y,svox,val,i;
+    var alpha = 0.99, px;
+    
+    // draw cmap over template
+    for(x=0;x<cn.width;x++)
+    for(y=0;y<cn.height;y++) {
+        switch(state.view) {
+            case 'sag': svox=brain[S+x*dim[0]+y*dim[0]*dim[1]]; break;
+            case 'cor': svox=brain[x+S*dim[0]+y*dim[0]*dim[1]]; break;
+            case 'axi': svox=brain[x+y*dim[0]+S*dim[0]*dim[1]]; break;
+        }
+        
+        // transform coordinates from 1mm^2 template to 4mm^3 cmap
+        i=Math.floor(x/4)+W*Math.floor(y/4);
+        
+        // get value from cmap
+        val=(myData[4*i+0]+myData[4*i+1])/255;
+        
+        // reinforce small values
+        // val = Math.pow(val,1/4);
+        
+        // use value as opacity index
+        alpha=val;
+        
+        // convert value to color
+        px = colormap(val);
+
+        data2[4*(x+(cn.height-1-y)*M)+0]=alpha*px[0] + svox*(1-alpha);
+        data2[4*(x+(cn.height-1-y)*M)+1]=alpha*px[1] + svox*(1-alpha);
+        data2[4*(x+(cn.height-1-y)*M)+2]=alpha*px[2] + svox*(1-alpha);
+        data2[4*(x+(cn.height-1-y)*M)+3]=255;
+    }
+    cx.putImageData(mimg,0,0,0,0,cn.width,cn.height);
+
+    // update seed and target cursors
+    updateCursor($("#seed"),state.seed);
+    updateCursor($("#target"),state.target);
+}
+
+// change seed or target position
+function changeSeed(x,param,updateSliders,doNotRequestData) {
+    if(debug) console.log("> changeSeed");
+    var sync=$("#sync")[0].checked;
+    
+    // update seed value
+    switch(param) {
+        case 'sx': state.seed[0]=parseInt(x,10); break;
+        case 'sy': state.seed[1]=parseInt(x,10); break;
+        case 'sz': state.seed[2]=parseInt(x,10); break;
+        case 'xyz': state.seed=[x[0],x[1],x[2]]; break;
+    }
+    
+    // if sync is checked, update the target too
+    if(sync && !doNotRequestData) {
+        changeTarget(state.seed,"xyz",true,true);
+    }
+    
+    // update the sliders
+    if(updateSliders) {
+        $("#sx").val(state.seed[0]);
+        $("#sy").val(state.seed[1]);
+        $("#sz").val(state.seed[2]);
+    }
+    
+    // update the seed cursor
+    updateCursor($("#seed"),state.seed);
+    
+    // request data
+    if(doNotRequestData==undefined)
+        requestData();
+}
+function changeTarget(x,param,updateSliders,doNotRequestData) {
+    if(debug) console.log("> changeTarget");
+    var sync=$("#sync")[0].checked;
+    
+    // update target value
+    switch(param) {
+        case 'tx': state.target[0]=parseInt(x,10); break;
+        case 'ty': state.target[1]=parseInt(x,10); break;
+        case 'tz': state.target[2]=parseInt(x,10); break;
+        case 'xyz': state.target=[x[0],x[1],x[2]]; break;
+    }
+    
+    // if sync, update the seed too
+    if(sync && !doNotRequestData) {
+        changeSeed(state.target,"xyz",true,true);
+    }
+    
+    // update the sliders
+    if(updateSliders) {
+        $("#tx").val(state.target[0]);
+        $("#ty").val(state.target[1]);
+        $("#tz").val(state.target[2]);
+    }
+
+    // update the target cursor
+    updateCursor($("#target"),state.target);
+    
+    // request data
+    if(doNotRequestData==undefined)
+        requestData();
+}
+function updateCursor(el,pos) {
+    if(debug) console.log("> updateCursor");
+    var x, y;
+    switch(state.view) {
+        case 'sag': x=pos[1]; y=pos[2]; break;
+        case 'cor': x=pos[0]; y=pos[2]; break;
+        case 'axi': x=pos[0]; y=pos[1]; break;
+    }
+    x=Math.floor(x/W*$("#viewer").width());
+    y=$("#viewer").height()-Math.floor((y+1)/H*$("#viewer").height());
+    el.css({top:y,left:x});
+}
+
+// change view plane
+function changeView(param) {
+    if(debug) console.log("> changeView");
+    state.view=param;
+    switch(state.view) {
+        case 'sag':  W=dim[1]; H=dim[2]; S=state.target[0]; break;
+        case 'cor':  W=dim[0]; H=dim[2]; S=state.target[1]; break;
+        case 'axi':  W=dim[0]; H=dim[1]; S=state.target[2]; break;
+    }
+    cn.width=W;
+    cn.height=H;
+    W/=4;console.log(dim,W);
+    H/=4;console.log(dim,H);
+    S*=4;
+    requestData();
+}
+
+// mouse/touch events
+function mousedown(e) {
+    if(debug) console.log("> mousedown");
+    var o = $("#viewer").offset();
+    var x = e.clientX-o.left;
+    var y = e.clientY-o.top;
+    var i = Math.floor(W*(x/$("#viewer").width()));
+    var j = H-1-Math.floor(H*(y/$("#viewer").height()));
+    
+    switch(state.view) {
+        case 'sag': changeTarget([state.target[0],i,j],'xyz',true); break;
+        case 'cor': changeTarget([i,state.target[1],j],'xyz',true); break;
+        case 'axi': changeTarget([i,j,state.target[2]],'xyz',true); break;
+    }
+    
+    isMouseDown = true;
+}
+function mousemove(e) {
+    if(isMouseDown == false)
+        return;
+    if(debug) console.log("> mousemove");
+    
+    var o = $("#viewer").offset();
+    var x = e.clientX-o.left;
+    var y = e.clientY-o.top;
+    var i = Math.floor(W*(x/$("#viewer").width()));
+    var j = H-1-Math.floor(H*(y/$("#viewer").height()));
+    
+    switch(state.view) {
+        case 'sag': changeTarget([state.target[0],i,j],'xyz',true); break;
+        case 'cor': changeTarget([i,state.target[1],j],'xyz',true); break;
+        case 'axi': changeTarget([i,j,state.target[2]],'xyz',true); break;
+    }
+}
+function mouseup(e) {
+    if(debug) console.log("> mouseup");
+    isMouseDown = false;
+}
+</script>
+</body>
+</html>
