@@ -373,9 +373,15 @@ const init = async () => {
   // const host = "ws://" + window.location.hostname + ":8084/";
   // const host = "wss://brainspell.org/cmapjs";
   const res = await fetch("./cfg.json");
-  const {host, port} = await res.json();
+  const {host, clientPort: port} = await res.json();
   console.log({host, port});
-  ws = new WebSocket(`${host}:${port}`);
+
+  if (port) {
+    ws = new WebSocket(`${host}:${port}`);
+  } else {
+    ws = new WebSocket(`${host}`);
+  }
+
   ws.onopen = () => {
     drawTemplate();
     changeView('sag');
