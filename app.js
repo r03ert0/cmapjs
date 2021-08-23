@@ -11,6 +11,10 @@ const fs = require('fs');
 // const jpeg = require('jpeg-js'); // jpeg-js library: https://github.com/eugeneware/jpeg-js
 const StreamZip = require('node-stream-zip');
 
+const config = JSON.parse(fs.readFileSync('./cfg.json'));
+console.log({config});
+const {cpath, tpath, spath, port} = config;
+
 let data; // where the cmap data is extracted to
 let jpg; // jpg made out of the cmap data
 let txt; // where the top100 data is extracted to
@@ -23,16 +27,16 @@ let prevSeed = [22, 27, 22];
 let prevTarget = [22, 27, 22];
 
 var coincidencesZip;
-//const cpath="/Users/roberto/Documents/2010_10Coactivations/coincidences2013/coincidences.zip"
-const cpath="/Users/roberto/Documents/2010_10Coactivations/coincidences2017/coincidences.zip";
+// const cpath="/Users/roberto/Documents/2010_10Coactivations/coincidences2013/coincidences.zip"
+// const cpath="/Users/roberto/Documents/2010_10Coactivations/coincidences2017/coincidences.zip";
 
 let top100Zip;
-// var tpath="/Users/roberto/Documents/2010_10Coactivations/coincidences2013/top100.zip"
-const tpath="/Users/roberto/Documents/2010_10Coactivations/coincidences2013/top100.zip";
+// const tpath="/Users/roberto/Documents/2010_10Coactivations/coincidences2013/top100.zip"
+// const tpath="/Users/roberto/Documents/2010_10Coactivations/coincidences2013/top100.zip";
 
 // load sum
-//var spath="/Users/roberto/Documents/2010_10Coactivations/coincidences2013/sum.img";
-const spath="/Users/roberto/Documents/2010_10Coactivations/coincidences2017/sum.img";
+// const spath="/Users/roberto/Documents/2010_10Coactivations/coincidences2013/sum.img";
+// const spath="/Users/roberto/Documents/2010_10Coactivations/coincidences2017/sum.img";
 
 const castInt16Array = (buff) => {
   const arr = new Int16Array(buff.length/2);
@@ -47,7 +51,7 @@ const sum = castInt16Array(fs.readFileSync(spath));
 const http = require('http');
 const server = http.createServer();
 const WebSocketServer = require('ws').Server;
-const port = 8084;
+// const port = 8084;
 const websocket = new WebSocketServer({server: server});
 server.listen(port, function() {
   console.log('Listening on '+server.address().port, server.address());

@@ -3,13 +3,12 @@
 'use strict';
 
 let brain; // template 3D data
-const dim=[180, 216, 180]; // template dimensions, 1mm3
+const dim = [180, 216, 180]; // template dimensions, 1mm3
 const M = Math.max(...dim); // maximum dimension
 let loading = false;
 let isMouseDown = false;
 let lastReq, pendingReq;
-const host = "ws://" + window.location.hostname + ":8084/";
-const ws = new WebSocket(host);
+let ws;
 let myData; // cmap slice img data
 const state = {
   seed:[22, 27, 22],
@@ -357,10 +356,6 @@ const mouseup = () => {
 
 const init = async () => {
   await loadTemplate();
-  changeView("sag");
-  document.querySelector("#seed").style.display = "block";
-  document.querySelector("#target").style.display = "block";
-  drawTemplate();
 
   // add mouse/touch listeners to 'viewer' canvas
   document.querySelector('#viewer').addEventListener('mousedown', mousedown);
@@ -373,9 +368,19 @@ const init = async () => {
       mouseup(e);
     }
   });
+
   // open websocket
+  // const host = "ws://" + window.location.hostname + ":8084/";
+  // const host = "wss://brainspell.org/cmapjs";
+  const res = await fetch("./cfg.json");
+  const {host, port} = await res.json();
+  console.log({host, port});
+  ws = new WebSocket(`${host}:${port}`);
   ws.onopen = () => {
+    drawTemplate();
     changeView('sag');
+    document.querySelector("#seed").style.display = "block";
+    document.querySelector("#target").style.display = "block";
   };
   ws.onmessage = receive;
 };
