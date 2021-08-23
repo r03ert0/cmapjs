@@ -125,9 +125,9 @@ const updateCursor = (el, pos) => {
 const brainVoxel = (view, x, y) => {
   let i;
   switch(view) {
-  case 'sag': i = S + x*dim[0] + y*dim[0]*dim[1]; break;
-  case 'cor': i = x + S*dim[0] + y*dim[0]*dim[1]; break;
-  case 'axi': i = x + y*dim[0] + S*dim[0]*dim[1]; break;
+  case 'sag': i = 4*state.target[0] + x*dim[0] + y*dim[0]*dim[1]; break;
+  case 'cor': i = x + 4*state.target[1]*dim[0] + y*dim[0]*dim[1]; break;
+  case 'axi': i = x + y*dim[0] + 4*state.target[2]*dim[0]*dim[1]; break;
   }
 
   return brain[i];
@@ -258,11 +258,10 @@ const changeTarget = (x, param, updateSliders, doNotRequestData) => {
   const sync = document.querySelector("#sync").checked;
 
   // update target value
-  S = 4 * parseInt(x, 10);
   switch(param) {
-  case 'tx': state.target[0] = S; break;
-  case 'ty': state.target[1] = S; break;
-  case 'tz': state.target[2] = S; break;
+  case 'tx': state.target[0] = parseInt(x, 10); break;
+  case 'ty': state.target[1] = parseInt(x, 10); break;
+  case 'tz': state.target[2] = parseInt(x, 10); break;
   case 'xyz': state.target = [x[0], x[1], x[2]]; break;
   }
 
@@ -299,7 +298,6 @@ const changeView = (param) => {
   cn.height=H;
   W/=4; console.log(dim, W);
   H/=4; console.log(dim, H);
-  S *= 4;
   requestData();
 
   // update button selection
