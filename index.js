@@ -89,7 +89,7 @@ const loadTemplate = () => {
       imgOnLoad(spriteImg, scn, scx, img, ncol);
       resolve();
     };
-    img.src = '/img/sprite.jpg';
+    img.src = 'img/sprite.jpg';
   });
 };
 
