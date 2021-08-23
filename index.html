@@ -1,0 +1,80 @@
+<!doctype html>
+<html>
+<head>
+    <title>Coactivation Map</title>
+    <link href="https://fonts.googleapis.com/css?family=Montserrat:200,500" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="cmapjs.css" />
+</head>
+
+<body>
+
+<div id="header">
+    <!-- Top-right menu bar -->
+    <div id="menu">
+        <a href="doc.html" target="_blank"><img id="doc" class="button" title="documentation" src="img/doc.svg"/></a>
+        <a href="https://github.com/neuroanatomy/cmapjs/issues" target="_blank"><img id="bug" class="button" title="report a bug" src="img/bug.svg"/></a>
+        <a href="https://github.com/neuroanatomy/cmapjs" target="_blank"><img id="github" class="button" title="join our github project" style="width:15px;height:15px" src="img/github.svg"/></a>
+    </div>
+
+    <!-- Small left-top logo -->
+    <div style="display:inline-block;margin:10px">
+        <a href="/" style="text-decoration:none">
+            <span style="font-family: 'Montserrat', sans-serif;color:white;font-size:24px; font-weight:200;">Coactivation Map</span>
+        </a>
+    </div>
+</div>
+    
+<div id="view">
+    <div class="row">
+        <div id="viewerContainer">
+            <canvas id="viewer"></canvas>
+            <div id="seed"></div>
+            <div id="target"></div>
+            <pre id="info"></pre>
+        </div>    
+    </div>
+
+    <div class="row">
+        <div class="col" style="width: 70px">
+            <div class="row">
+                Plane<br />
+                <button id="sag" class="plane" onclick="changeView('sag')">Sag</button><br />
+                <button id="cor" class="plane" onclick="changeView('cor')">Cor</button><br />
+                <button id="axi" class="plane" onclick="changeView('axi')">Axi</button>    
+            </div>
+        </div>
+                
+        <div class="col">
+            <div class="row">
+                <div class="col">
+                    Seed<br />
+                    X <input id="sx" max="45" oninput="changeSeed(this.value,'sx')" type="range" /><br />
+                    Y <input id="sy" max="54" oninput="changeSeed(this.value,'sy')" type="range" /><br />
+                    Z <input id="sz" max="45" oninput="changeSeed(this.value,'sz')" type="range" /><br />    
+                </div>
+                
+                <div class="col">
+                    Target<br />
+                    X <input id="tx" max="45" oninput="changeTarget(this.value,'tx')" type="range" /><br />
+                    Y <input id="ty" max="54" oninput="changeTarget(this.value,'ty')" type="range" /><br />
+                    Z <input id="tz" max="45" oninput="changeTarget(this.value,'tz')" type="range" /><br />        
+                </div>
+            </div>
+            <div class="row">
+                <label><input id="sync" type="checkbox" checked /> Sync</label><br />
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="top">
+    <div id="top100" style="margin:0"></div>
+</div>
+
+
+<!--
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+-->
+<script src="index.js"></script>
+</body>
+</html>

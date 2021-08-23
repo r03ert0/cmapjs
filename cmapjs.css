@@ -1,0 +1,89 @@
+body {
+  font-family: "Montserrat", sans-serif;
+  font-size: 1rem;
+  font-weight: 200;
+  line-height: 1.3;
+  color: white;
+  background: #222;
+}
+canvas, img {
+  width: 512px;
+  image-rendering: pixelated;
+}
+button {
+  width: 100%;
+  margin: 2px;
+  padding: 3px;
+  background: #222;
+  color: white;
+  border: thin solid #666;
+}
+button.selected {
+  background: #555;
+}
+#view {
+  display: inline-block;
+  border: thin solid #555;
+}
+#viewerContainer {
+  position:relative;
+}
+#top {
+  display: inline-block;
+  vertical-align: top;
+  padding: 0 10px;
+}
+#seed {
+  display:none;
+  width:10px;
+  height:10px;
+  position:absolute;
+  top:0;
+  left:0;
+  background-color:white;
+  border:thin solid white;
+  border-radius:10px;
+  pointer-events:none;
+}
+#target {
+  display:none;
+  width:10px;
+  height:10px;
+  position:absolute;
+  top:0;
+  left:0;
+  border:thin solid white;
+  pointer-events:none;
+}
+#info {
+  color: white;
+  position:absolute;
+  right: 10px;
+  bottom:-10px;
+}
+#menu {
+  float: right;
+  margin-right: 10px;
+}
+#menu img {
+  margin-left: 15px;
+}
+img.button {
+  width: 0.9rem;
+  height: 0.9rem;
+  margin: 8px 2px;
+  vertical-align: middle;
+  cursor: pointer;
+}
+.col {
+  display: inline-block;
+  vertical-align: top;
+  margin: 0 10px;
+}
+.row {
+  display: block;
+  padding: 5px;
+}
+.corr {
+  display: inline;
+}
