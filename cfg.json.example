@@ -1,5 +1,6 @@
 {
-  "port": 8084,
+  "clientPort": 8084,
+  "serverPort": 8084,
   "host": "ws://localhost",
   "cpath": "coincidences2017/coincidences.zip",
   "tpath": "coincidences2017/top100.zip",
