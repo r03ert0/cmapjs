@@ -13,7 +13,7 @@ const StreamZip = require('node-stream-zip');
 
 const config = JSON.parse(fs.readFileSync('./cfg.json'));
 console.log({config});
-const {cpath, tpath, spath, port} = config;
+const {cpath, tpath, spath, serverPort: port} = config;
 
 let data; // where the cmap data is extracted to
 let jpg; // jpg made out of the cmap data
@@ -51,7 +51,6 @@ const sum = castInt16Array(fs.readFileSync(spath));
 const http = require('http');
 const server = http.createServer();
 const WebSocketServer = require('ws').Server;
-// const port = 8084;
 const websocket = new WebSocketServer({server: server});
 server.listen(port, function() {
   console.log('Listening on '+server.address().port, server.address());
