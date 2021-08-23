@@ -1,7 +1,7 @@
 /* eslint-disable max-lines */
 
 'use strict';
-const debug = 0;
+
 let brain; // template 3D data
 const dim=[180, 216, 180]; // template dimensions, 1mm3
 const M = Math.max(...dim); // maximum dimension
@@ -31,7 +31,6 @@ const data2=mimg.data;
 
 // send requestData message
 const requestData = (req) => {
-  if(debug) { console.log("> requestData"); }
   let str;
 
   if(req) {
@@ -80,7 +79,6 @@ const imgOnLoad = (spriteImg, scn, scx, img, ncol) => {
  * @returns {void}
  */
 const loadTemplate = () => {
-  if(debug) { console.log("> loadTemplate"); }
   let spriteImg;
   let ncol;
   const scn=document.createElement('canvas'); // sprite offscreen canvas
@@ -111,7 +109,6 @@ const colormap = (val) => {
 };
 
 const updateCursor = (el, pos) => {
-  if(debug) { console.log("> updateCursor"); }
   let x, y;
   switch(state.view) {
   case 'sag': ([x, y] = [pos[1], pos[2]]); break;
@@ -139,7 +136,6 @@ const brainVoxel = (view, x, y) => {
 
 // draw brain template image
 const drawTemplate = () => {
-  // if(debug) { console.log("> drawTemplate"); }
   let alpha, px;
 
   // draw cmap over template
@@ -168,6 +164,7 @@ const drawTemplate = () => {
       data2[4*(x+(cn.height-1-y)*M)+3]=255;
     }
   }
+
   cx.putImageData(mimg, 0, 0, 0, 0, cn.width, cn.height);
 
   // update seed and target cursors
@@ -216,8 +213,6 @@ const receiveTextData = (data) => {
 };
 
 const receive = (msg) => {
-  if(debug) { console.log("> receive"); }
-
   if(msg.data instanceof Blob) {
     // data is binary (cmap)
     receiveBinaryData(msg.data);
@@ -229,7 +224,6 @@ const receive = (msg) => {
 
 // change seed or target position
 const changeSeed = (x, param, updateSliders, doNotRequestData) => {
-  if(debug) { console.log("> changeSeed"); }
   const sync = document.querySelector("#sync").checked;
 
   // update seed value
@@ -262,7 +256,6 @@ const changeSeed = (x, param, updateSliders, doNotRequestData) => {
 };
 
 const changeTarget = (x, param, updateSliders, doNotRequestData) => {
-  if(debug) { console.log("> changeTarget"); }
   const sync = document.querySelector("#sync").checked;
 
   // update target value
@@ -297,7 +290,6 @@ const changeTarget = (x, param, updateSliders, doNotRequestData) => {
 
 // change view plane
 const changeView = (param) => {
-  if(debug) { console.log("> changeView"); }
   state.view=param;
   switch(state.view) {
   case 'sag': ([W, H, S] = [dim[1], dim[2], state.target[0]]); break;
@@ -318,7 +310,6 @@ const changeView = (param) => {
 
 // mouse/touch events
 const mousedown = (e) => {
-  if(debug) { console.log("> mousedown"); }
   const rect = document.querySelector("#viewer").getBoundingClientRect();
   const left = rect.x;
   const top = rect.y;
@@ -341,7 +332,6 @@ const mousedown = (e) => {
 
 const mousemove = (e) => {
   if(isMouseDown === false) { return; }
-  if(debug) { console.log("> mousemove"); }
 
   const rect = document.querySelector("#viewer").getBoundingClientRect();
   const left = rect.x;
@@ -362,7 +352,6 @@ const mousemove = (e) => {
 };
 
 const mouseup = () => {
-  if(debug) { console.log("> mouseup"); }
   isMouseDown = false;
 };
 

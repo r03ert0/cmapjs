@@ -3,7 +3,11 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "node app.js"
+    "start": "node app.js",
+    "web-server": "http-server -s -p 8080 &",
+    "pretest": "npm run web-server",
+    "test": "nyc mocha test.mjs",
+    "posttest": "kill $(lsof -t -i:8080)"
   },
   "dependencies": {
     "jpeg-js": "^0.2.0",
@@ -11,6 +15,9 @@
     "ws": "^1.1.1"
   },
   "devDependencies": {
-    "eslint-config-naat": "github:neuroanatomy/eslint-config-naat"
+    "eslint-config-naat": "github:neuroanatomy/eslint-config-naat",
+    "nyc": "^15.1.0",
+    "puppeteer": "^10.2.0",
+    "puppeteer-to-istanbul": "^1.4.0"
   }
 }
